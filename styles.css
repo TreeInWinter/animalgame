@@ -5,6 +5,7 @@
   --text: #1f2d3d;
   --ok: #2f9e44;
   --error: #d9480f;
+  --shadow: rgba(22, 119, 255, 0.18);
 }
 
 * {
@@ -16,12 +17,13 @@ body {
   font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
   background: linear-gradient(180deg, #f0f7ff 0%, var(--bg) 100%);
   color: var(--text);
+  overflow-x: hidden;
 }
 
 .app {
-  width: min(920px, 92vw);
+  width: min(920px, 94vw);
   margin: 0 auto;
-  padding: 1.2rem 0 2rem;
+  padding: 1rem 0 2rem;
 }
 
 .hero {
@@ -29,8 +31,19 @@ body {
   margin-bottom: 1rem;
 }
 
+.onboarding {
+  font-size: 1rem;
+  color: #13408f;
+  background: #eaf2ff;
+  border-radius: 12px;
+  padding: 0.7rem 0.8rem;
+  display: inline-block;
+  max-width: 100%;
+}
+
 h1,
-h2 {
+h2,
+h3 {
   margin: 0.6rem 0;
 }
 
@@ -41,18 +54,25 @@ h2 {
 }
 
 .animal-card {
+  min-height: 56px;
   background: var(--card);
   border: 2px solid #dbe9ff;
   border-radius: 14px;
   padding: 0.8rem;
   cursor: pointer;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
 }
 
 .animal-card:hover,
 .animal-card:focus-visible {
   transform: translateY(-2px);
-  box-shadow: 0 6px 14px rgba(22, 119, 255, 0.18);
+  box-shadow: 0 6px 14px var(--shadow);
+}
+
+.animal-card.tap-active {
+  transform: scale(0.97);
+  border-color: var(--primary);
+  box-shadow: 0 0 0 4px rgba(22, 119, 255, 0.18);
 }
 
 .emoji {
@@ -77,26 +97,49 @@ h2 {
   border: 2px solid #e8f0ff;
 }
 
+.quiz-actions {
+  margin-bottom: 0.6rem;
+}
+
 .options {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
-  gap: 0.55rem;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 0.6rem;
 }
 
 .option-btn,
-#reset-progress {
+#reset-progress,
+.soft-btn,
+.danger-btn {
+  min-height: 56px;
   border: 0;
-  background: #e7f0ff;
-  color: #0f3b8f;
-  border-radius: 10px;
-  padding: 0.6rem;
+  border-radius: 12px;
+  padding: 0.65rem 0.7rem;
   cursor: pointer;
   font-size: 1rem;
 }
 
+.option-btn,
+#reset-progress,
+.soft-btn {
+  background: #e7f0ff;
+  color: #0f3b8f;
+}
+
 .option-btn:hover,
-#reset-progress:hover {
+#reset-progress:hover,
+.soft-btn:hover {
   background: #d5e7ff;
+}
+
+.option-btn.is-correct {
+  background: #d8f5df;
+  color: #1f7a35;
+}
+
+.option-btn.is-wrong {
+  background: #ffe1d6;
+  color: #ac3300;
 }
 
 .feedback {
@@ -111,4 +154,150 @@ h2 {
 
 .feedback.error {
   color: var(--error);
+}
+
+.feedback.pulse {
+  animation: feedback-pop 260ms ease;
+}
+
+.parent-gate {
+  position: fixed;
+  top: 8px;
+  right: 8px;
+  z-index: 40;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.6);
+  color: #1d3f77;
+  font-size: 1.1rem;
+}
+
+.parent-gate.holding {
+  box-shadow: 0 0 0 4px rgba(22, 119, 255, 0.25);
+}
+
+.parent-dialog {
+  border: 0;
+  border-radius: 14px;
+  padding: 0;
+  width: min(560px, 92vw);
+}
+
+.parent-dialog::backdrop {
+  background: rgba(15, 24, 42, 0.45);
+}
+
+.dialog-card {
+  padding: 1rem;
+}
+
+.dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.close-btn {
+  border: 0;
+  background: #eff4ff;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+}
+
+.stats ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.mastery-list {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.mastery-row {
+  display: grid;
+  grid-template-columns: 72px 1fr 42px;
+  gap: 0.45rem;
+  align-items: center;
+  font-size: 0.95rem;
+}
+
+.bar {
+  height: 10px;
+  border-radius: 999px;
+  background: #ebf2ff;
+  overflow: hidden;
+}
+
+.bar > i {
+  display: block;
+  height: 100%;
+  background: #5f9cff;
+}
+
+.controls {
+  margin-top: 0.5rem;
+  display: grid;
+  gap: 0.6rem;
+}
+
+.switch-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.switch-item select {
+  min-height: 42px;
+  border-radius: 10px;
+  border: 1px solid #cfe0ff;
+  padding: 0 0.45rem;
+}
+
+.danger-zone {
+  margin-top: 0.9rem;
+}
+
+.danger-btn {
+  width: 100%;
+  background: #ffe5e1;
+  color: #a72800;
+}
+
+@keyframes feedback-pop {
+  0% {
+    transform: scale(0.95);
+    opacity: 0.6;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+body[data-anim-level='low'] * {
+  transition-duration: 0.08s !important;
+  animation-duration: 0.12s !important;
+}
+
+body[data-anim-level='off'] * {
+  transition: none !important;
+  animation: none !important;
+}
+
+@media (max-width: 480px) {
+  .app {
+    width: 95vw;
+  }
+
+  .emoji {
+    font-size: 2.1rem;
+  }
 }

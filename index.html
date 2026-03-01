@@ -6,11 +6,21 @@
     <title>Animal Game</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
-  <body>
+  <body data-anim-level="high">
+    <button
+      id="parent-gate"
+      class="parent-gate"
+      type="button"
+      aria-label="家长入口，长按打开"
+      title="家长入口（长按 1.2 秒）"
+    >
+      ⚙️
+    </button>
+
     <main class="app">
       <header class="hero">
         <h1>🐾 小动物认知乐园</h1>
-        <p>点击卡片听一听动物叫什么，再做一个小小测验！</p>
+        <p id="onboarding" class="onboarding">先点动物卡片听声音，再做测验，选出正确的小动物！</p>
       </header>
 
       <section>
@@ -21,6 +31,9 @@
       <section class="quiz" aria-labelledby="quiz-title">
         <h2 id="quiz-title">快速测验</h2>
         <p id="question" class="question"></p>
+        <div class="quiz-actions">
+          <button id="replay-sound" type="button" class="soft-btn">🔊 再听一次</button>
+        </div>
         <div id="options" class="options"></div>
         <p id="feedback" class="feedback" role="status"></p>
       </section>
@@ -31,6 +44,53 @@
         <button id="reset-progress" type="button">重置进度</button>
       </section>
     </main>
+
+    <dialog id="parent-dialog" class="parent-dialog">
+      <form method="dialog" class="dialog-card" id="parent-form">
+        <header class="dialog-header">
+          <h2>家长模式</h2>
+          <button id="close-parent" class="close-btn" value="cancel" aria-label="关闭">✕</button>
+        </header>
+
+        <section class="stats">
+          <h3>学习统计</h3>
+          <ul>
+            <li>总答题数：<strong id="stat-total">0</strong></li>
+            <li>正确率：<strong id="stat-accuracy">0%</strong></li>
+            <li>连续学习天数：<strong id="stat-streak">0</strong></li>
+          </ul>
+        </section>
+
+        <section class="mastery">
+          <h3>各动物掌握度</h3>
+          <div id="mastery-list" class="mastery-list"></div>
+        </section>
+
+        <section class="controls">
+          <h3>控制开关</h3>
+          <label class="switch-item">
+            <input id="toggle-bgm" type="checkbox" />
+            背景音乐
+          </label>
+          <label class="switch-item">
+            <input id="toggle-sfx" type="checkbox" />
+            音效
+          </label>
+          <label class="switch-item">
+            动画强度
+            <select id="anim-level">
+              <option value="high">高</option>
+              <option value="low">低</option>
+              <option value="off">关闭</option>
+            </select>
+          </label>
+        </section>
+
+        <section class="danger-zone">
+          <button id="reset-all" type="button" class="danger-btn">清空全部学习数据</button>
+        </section>
+      </form>
+    </dialog>
 
     <script src="app.js"></script>
   </body>
