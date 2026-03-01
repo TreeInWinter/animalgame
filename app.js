@@ -1,48 +1,77 @@
-const animals = window.ANIMALS || [];
-const categories = window.CATEGORY_LABELS || {};
-const levels = window.DIFFICULTY_LEVELS || {};
+const animals = [
+  { id: 'cat', name: '小猫', emoji: '🐱', sound: '喵喵' },
+  { id: 'dog', name: '小狗', emoji: '🐶', sound: '汪汪' },
+  { id: 'duck', name: '小鸭', emoji: '🦆', sound: '嘎嘎' },
+  { id: 'sheep', name: '小羊', emoji: '🐑', sound: '咩咩' },
+  { id: 'cow', name: '小牛', emoji: '🐮', sound: '哞哞' },
+  { id: 'chick', name: '小鸡', emoji: '🐥', sound: '叽叽' }
+];
 
-const storageKey = 'animal-game-state-v1-2-v1-4';
-const todayKey = new Date().toISOString().slice(0, 10);
+const storageKey = 'animal-game-score';
+const parentKey = 'animal-game-parent-state';
 
-const defaultState = {
-  score: 0,
-  streak: 0,
-  difficulty: 'normal',
-  category: 'all',
-  language: 'zh',
-  wrongQueue: [],
-  dailyStats: {}
+const defaultParentState = {
+  attempts: 0,
+  correct: 0,
+  lastLearnDate: '',
+  streakDays: 0,
+  animalStats: Object.fromEntries(animals.map((a) => [a.id, { attempts: 0, correct: 0 }])),
+  settings: {
+    bgm: false,
+    sfx: true,
+    animLevel: 'high'
+  }
 };
 
-const persisted = JSON.parse(localStorage.getItem(storageKey) || '{}');
-const state = {
-  ...defaultState,
-  ...persisted,
-  dailyStats: persisted.dailyStats || {},
-  wrongQueue: Array.isArray(persisted.wrongQueue) ? persisted.wrongQueue : []
-};
-
-state.dailyStats[todayKey] = state.dailyStats[todayKey] || { attempts: 0, correct: 0 };
-
+let score = Number(localStorage.getItem(storageKey) || 0);
 let currentQuestion = null;
 let audioContext = null;
+let bgmTimer = null;
+let parentState = loadParentState();
 
 const gridEl = document.querySelector('#animal-grid');
 const questionEl = document.querySelector('#question');
 const optionsEl = document.querySelector('#options');
 const feedbackEl = document.querySelector('#feedback');
 const scoreEl = document.querySelector('#score');
-const streakEl = document.querySelector('#streak');
-const dailyCountEl = document.querySelector('#daily-count');
 const resetBtn = document.querySelector('#reset-progress');
-const difficultyEl = document.querySelector('#difficulty');
-const categoryEl = document.querySelector('#category');
-const languageToggleEl = document.querySelector('#lang-toggle');
-const replayBtn = document.querySelector('#replay-question');
+const replayBtn = document.querySelector('#replay-sound');
 
-function saveState() {
-  localStorage.setItem(storageKey, JSON.stringify(state));
+const parentGateEl = document.querySelector('#parent-gate');
+const parentDialogEl = document.querySelector('#parent-dialog');
+const statTotalEl = document.querySelector('#stat-total');
+const statAccuracyEl = document.querySelector('#stat-accuracy');
+const statStreakEl = document.querySelector('#stat-streak');
+const masteryListEl = document.querySelector('#mastery-list');
+const resetAllBtn = document.querySelector('#reset-all');
+const toggleBgmEl = document.querySelector('#toggle-bgm');
+const toggleSfxEl = document.querySelector('#toggle-sfx');
+const animLevelEl = document.querySelector('#anim-level');
+
+function loadParentState() {
+  try {
+    const raw = localStorage.getItem(parentKey);
+    if (!raw) return structuredClone(defaultParentState);
+    const parsed = JSON.parse(raw);
+    return {
+      ...structuredClone(defaultParentState),
+      ...parsed,
+      settings: {
+        ...defaultParentState.settings,
+        ...(parsed.settings || {})
+      },
+      animalStats: {
+        ...defaultParentState.animalStats,
+        ...(parsed.animalStats || {})
+      }
+    };
+  } catch {
+    return structuredClone(defaultParentState);
+  }
+}
+
+function saveParentState() {
+  localStorage.setItem(parentKey, JSON.stringify(parentState));
 }
 
 function getAudioContext() {
@@ -54,7 +83,15 @@ function getAudioContext() {
   return audioContext;
 }
 
-function playTone({ start, duration, fromFreq, toFreq, gain = 0.18, type = 'sine', filterFreq = 1600 }) {
+function playTone({
+  start,
+  duration,
+  fromFreq,
+  toFreq,
+  gain = 0.18,
+  type = 'sine',
+  filterFreq = 1600
+}) {
   const ctx = getAudioContext();
   if (!ctx) return;
 
@@ -80,127 +117,149 @@ function playTone({ start, duration, fromFreq, toFreq, gain = 0.18, type = 'sine
   osc.stop(start + duration + 0.02);
 }
 
-function playAnimalSound(animal) {
-  if (!animal) return;
+function playSuccessJingle() {
+  if (!parentState.settings.sfx) return;
   const ctx = getAudioContext();
   if (!ctx) return;
-  if (ctx.state === 'suspended') ctx.resume();
+  const now = ctx.currentTime + 0.01;
+  playTone({ start: now, duration: 0.1, fromFreq: 520, toFreq: 660, gain: 0.13, type: 'triangle', filterFreq: 2200 });
+  playTone({ start: now + 0.1, duration: 0.12, fromFreq: 660, toFreq: 880, gain: 0.13, type: 'triangle', filterFreq: 2400 });
+}
+
+function playErrorJingle() {
+  if (!parentState.settings.sfx) return;
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  const now = ctx.currentTime + 0.01;
+  playTone({ start: now, duration: 0.12, fromFreq: 280, toFreq: 180, gain: 0.14, type: 'sawtooth', filterFreq: 900 });
+  playTone({ start: now + 0.12, duration: 0.1, fromFreq: 180, toFreq: 150, gain: 0.12, type: 'sawtooth', filterFreq: 800 });
+}
+
+function playAnimalSound(animalId) {
+  if (!parentState.settings.sfx) return;
+
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  if (ctx.state === 'suspended') {
+    ctx.resume();
+  }
 
   const now = ctx.currentTime + 0.01;
-  const tone = animal.tone || { from: 500, to: 320, type: 'sine' };
 
-  playTone({
-    start: now,
-    duration: 0.18,
-    fromFreq: tone.from,
-    toFreq: tone.to,
-    gain: 0.18,
-    type: tone.type,
-    filterFreq: Math.max(500, tone.from + 400)
-  });
-
-  playTone({
-    start: now + 0.16,
-    duration: 0.16,
-    fromFreq: tone.from * 0.9,
-    toFreq: tone.to * 0.85,
-    gain: 0.14,
-    type: tone.type,
-    filterFreq: Math.max(500, tone.from + 200)
-  });
+  if (animalId === 'cat') {
+    playTone({ start: now, duration: 0.26, fromFreq: 680, toFreq: 420, gain: 0.14, type: 'triangle', filterFreq: 2200 });
+    playTone({ start: now + 0.15, duration: 0.22, fromFreq: 520, toFreq: 360, gain: 0.12, type: 'sine', filterFreq: 1800 });
+    return;
+  }
+  if (animalId === 'dog') {
+    playTone({ start: now, duration: 0.12, fromFreq: 260, toFreq: 170, gain: 0.26, type: 'sawtooth', filterFreq: 900 });
+    playTone({ start: now + 0.18, duration: 0.14, fromFreq: 220, toFreq: 150, gain: 0.24, type: 'sawtooth', filterFreq: 850 });
+    return;
+  }
+  if (animalId === 'duck') {
+    playTone({ start: now, duration: 0.1, fromFreq: 520, toFreq: 430, gain: 0.2, type: 'square', filterFreq: 1300 });
+    playTone({ start: now + 0.12, duration: 0.1, fromFreq: 500, toFreq: 410, gain: 0.2, type: 'square', filterFreq: 1300 });
+    return;
+  }
+  if (animalId === 'sheep') {
+    playTone({ start: now, duration: 0.22, fromFreq: 420, toFreq: 290, gain: 0.18, type: 'triangle', filterFreq: 1100 });
+    playTone({ start: now + 0.12, duration: 0.2, fromFreq: 300, toFreq: 240, gain: 0.16, type: 'sine', filterFreq: 900 });
+    return;
+  }
+  if (animalId === 'cow') {
+    playTone({ start: now, duration: 0.32, fromFreq: 190, toFreq: 120, gain: 0.24, type: 'sawtooth', filterFreq: 700 });
+    playTone({ start: now + 0.2, duration: 0.22, fromFreq: 140, toFreq: 95, gain: 0.2, type: 'triangle', filterFreq: 600 });
+    return;
+  }
+  if (animalId === 'chick') {
+    playTone({ start: now, duration: 0.08, fromFreq: 1400, toFreq: 1100, gain: 0.1, type: 'square', filterFreq: 3000 });
+    playTone({ start: now + 0.1, duration: 0.08, fromFreq: 1450, toFreq: 1150, gain: 0.1, type: 'square', filterFreq: 3000 });
+  }
 }
 
-function getName(animal) {
-  return state.language === 'zh' ? animal.nameZh : animal.nameEn;
+function startBgm() {
+  if (!parentState.settings.bgm || bgmTimer) return;
+  const ctx = getAudioContext();
+  if (!ctx) return;
+
+  bgmTimer = setInterval(() => {
+    if (!parentState.settings.bgm || !parentState.settings.sfx) return;
+    const start = ctx.currentTime + 0.02;
+    playTone({ start, duration: 0.16, fromFreq: 392, toFreq: 392, gain: 0.035, type: 'sine', filterFreq: 1400 });
+    playTone({ start: start + 0.2, duration: 0.16, fromFreq: 523, toFreq: 523, gain: 0.03, type: 'sine', filterFreq: 1600 });
+  }, 1200);
 }
 
-function getSound(animal) {
-  return state.language === 'zh' ? animal.soundZh : animal.soundEn;
+function stopBgm() {
+  if (bgmTimer) {
+    clearInterval(bgmTimer);
+    bgmTimer = null;
+  }
 }
 
-function getFilteredAnimals() {
-  if (state.category === 'all') return animals;
-  return animals.filter((item) => item.category === state.category);
-}
-
-function buildSelectOptions() {
-  difficultyEl.innerHTML = '';
-  Object.entries(levels).forEach(([key, value]) => {
-    const option = document.createElement('option');
-    option.value = key;
-    option.textContent = state.language === 'zh' ? value.zh : value.en;
-    option.selected = key === state.difficulty;
-    difficultyEl.appendChild(option);
-  });
-
-  categoryEl.innerHTML = '';
-  Object.entries(categories).forEach(([key, value]) => {
-    const option = document.createElement('option');
-    option.value = key;
-    option.textContent = state.language === 'zh' ? value.zh : value.en;
-    option.selected = key === state.category;
-    categoryEl.appendChild(option);
-  });
+function setAnimLevel(level) {
+  document.body.dataset.animLevel = level;
+  parentState.settings.animLevel = level;
+  saveParentState();
 }
 
 function renderAnimals() {
   gridEl.innerHTML = '';
-  getFilteredAnimals().forEach((animal) => {
+  animals.forEach((animal) => {
     const card = document.createElement('button');
     card.type = 'button';
     card.className = 'animal-card';
-    card.innerHTML = `<span class="emoji">${animal.emoji}</span><span class="name">${getName(animal)}</span>`;
-    card.addEventListener('click', () => playAnimalSound(animal));
+    card.innerHTML = `<span class="emoji">${animal.emoji}</span><span class="name">${animal.name}</span>`;
+    card.addEventListener('click', () => {
+      card.classList.add('tap-active');
+      setTimeout(() => card.classList.remove('tap-active'), 180);
+      playAnimalSound(animal.id);
+    });
     gridEl.appendChild(card);
   });
 }
 
-function updateProgress() {
-  scoreEl.textContent = String(state.score);
-  streakEl.textContent = String(state.streak);
-  dailyCountEl.textContent = String(state.dailyStats[todayKey].attempts || 0);
-  saveState();
+function updateScore() {
+  scoreEl.textContent = String(score);
+  localStorage.setItem(storageKey, String(score));
 }
 
-function randomPick(list) {
-  return list[Math.floor(Math.random() * list.length)];
-}
-
-function updateWrongQueueByTurn() {
-  state.wrongQueue = state.wrongQueue
-    .map((item) => ({ ...item, remain: item.remain - 1 }))
-    .filter((item) => item.remain > 0);
-}
-
-function getAnswerCandidate(candidates) {
-  const replayCandidates = state.wrongQueue.filter((item) => candidates.some((a) => a.id === item.id));
-  if (replayCandidates.length > 0 && Math.random() < 0.72) {
-    const picked = randomPick(replayCandidates);
-    return candidates.find((item) => item.id === picked.id) || randomPick(candidates);
+function trackLearningDay() {
+  const today = new Date().toISOString().slice(0, 10);
+  if (!parentState.lastLearnDate) {
+    parentState.lastLearnDate = today;
+    parentState.streakDays = 1;
+    return;
   }
-  return randomPick(candidates);
+
+  if (parentState.lastLearnDate === today) return;
+
+  const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  parentState.streakDays = parentState.lastLearnDate === yesterday ? parentState.streakDays + 1 : 1;
+  parentState.lastLearnDate = today;
+}
+
+function setFeedback(type, text) {
+  feedbackEl.textContent = text;
+  feedbackEl.className = `feedback ${type} pulse`;
+  setTimeout(() => feedbackEl.classList.remove('pulse'), 300);
 }
 
 function nextQuestion() {
-  updateWrongQueueByTurn();
-
-  const candidatePool = getFilteredAnimals();
-  const optionCount = Math.min(levels[state.difficulty].optionCount, candidatePool.length);
-  const answer = getAnswerCandidate(candidatePool);
+  const answer = animals[Math.floor(Math.random() * animals.length)];
   const options = [answer];
 
-  while (options.length < optionCount) {
-    const candidate = randomPick(candidatePool);
-    if (!options.includes(candidate)) options.push(candidate);
+  while (options.length < 3) {
+    const candidate = animals[Math.floor(Math.random() * animals.length)];
+    if (!options.includes(candidate)) {
+      options.push(candidate);
+    }
   }
 
   options.sort(() => Math.random() - 0.5);
   currentQuestion = { answer, options };
 
-  questionEl.textContent = state.language === 'zh'
-    ? `请找出：${getSound(answer)} 是哪只动物？`
-    : `Which animal says: ${getSound(answer)}?`;
-
+  questionEl.textContent = `请找出：${answer.sound} 是哪只动物？`;
   feedbackEl.textContent = '';
   feedbackEl.className = 'feedback';
 
@@ -209,98 +268,137 @@ function nextQuestion() {
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'option-btn';
-    button.textContent = `${option.emoji} ${getName(option)}`;
-    button.addEventListener('click', () => handleAnswer(option));
+    button.textContent = `${option.emoji} ${option.name}`;
+    button.addEventListener('click', () => {
+      const isCorrect = option.id === currentQuestion.answer.id;
+      const stat = parentState.animalStats[currentQuestion.answer.id] || { attempts: 0, correct: 0 };
+      stat.attempts += 1;
+      if (isCorrect) stat.correct += 1;
+      parentState.animalStats[currentQuestion.answer.id] = stat;
+
+      parentState.attempts += 1;
+      if (isCorrect) {
+        parentState.correct += 1;
+        score += 1;
+        updateScore();
+        setFeedback('ok', '真棒！答对啦 🎉');
+        button.classList.add('is-correct');
+        playSuccessJingle();
+      } else {
+        setFeedback('error', `再试试，正确答案是 ${currentQuestion.answer.name}`);
+        button.classList.add('is-wrong');
+        playErrorJingle();
+      }
+
+      playAnimalSound(currentQuestion.answer.id);
+      trackLearningDay();
+      saveParentState();
+
+      setTimeout(nextQuestion, 850);
+    });
     optionsEl.appendChild(button);
   });
 }
 
-function handleAnswer(option) {
-  if (!currentQuestion) return;
+function renderParentStats() {
+  statTotalEl.textContent = String(parentState.attempts);
+  const accuracy = parentState.attempts ? Math.round((parentState.correct / parentState.attempts) * 100) : 0;
+  statAccuracyEl.textContent = `${accuracy}%`;
+  statStreakEl.textContent = String(parentState.streakDays);
 
-  state.dailyStats[todayKey].attempts += 1;
+  masteryListEl.innerHTML = '';
+  animals.forEach((animal) => {
+    const stat = parentState.animalStats[animal.id] || { attempts: 0, correct: 0 };
+    const mastery = stat.attempts ? Math.round((stat.correct / stat.attempts) * 100) : 0;
+    const row = document.createElement('div');
+    row.className = 'mastery-row';
+    row.innerHTML = `
+      <span>${animal.emoji} ${animal.name}</span>
+      <span class="bar"><i style="width:${mastery}%"></i></span>
+      <span>${mastery}%</span>
+    `;
+    masteryListEl.appendChild(row);
+  });
+}
 
-  if (option.id === currentQuestion.answer.id) {
-    state.score += 1;
-    state.streak += 1;
-    state.dailyStats[todayKey].correct += 1;
+function bindParentControls() {
+  let holdTimer = null;
 
-    if (state.streak > 0 && state.streak % 3 === 0) {
-      feedbackEl.textContent = state.language === 'zh'
-        ? `太棒了！你已经连续答对 ${state.streak} 题啦 🌟`
-        : `Awesome! ${state.streak} correct in a row 🌟`;
-      feedbackEl.className = 'feedback reward';
-    } else {
-      feedbackEl.textContent = state.language === 'zh' ? '真棒！答对啦 🎉' : 'Great job! Correct 🎉';
-      feedbackEl.className = 'feedback ok';
+  const startHold = () => {
+    parentGateEl.classList.add('holding');
+    holdTimer = setTimeout(() => {
+      renderParentStats();
+      toggleBgmEl.checked = parentState.settings.bgm;
+      toggleSfxEl.checked = parentState.settings.sfx;
+      animLevelEl.value = parentState.settings.animLevel;
+      parentDialogEl.showModal();
+    }, 1200);
+  };
+
+  const cancelHold = () => {
+    parentGateEl.classList.remove('holding');
+    if (holdTimer) {
+      clearTimeout(holdTimer);
+      holdTimer = null;
     }
-  } else {
-    state.streak = 0;
-    state.wrongQueue.push({
-      id: currentQuestion.answer.id,
-      remain: Math.floor(Math.random() * 3) + 3
-    });
+  };
 
-    feedbackEl.textContent = state.language === 'zh'
-      ? `再试试，正确答案是 ${getName(currentQuestion.answer)}`
-      : `Try again. The answer is ${getName(currentQuestion.answer)}`;
-    feedbackEl.className = 'feedback error';
-  }
+  parentGateEl.addEventListener('mousedown', startHold);
+  parentGateEl.addEventListener('touchstart', startHold, { passive: true });
 
-  playAnimalSound(currentQuestion.answer);
-  updateProgress();
-  saveState();
-  setTimeout(nextQuestion, 800);
-}
+  parentGateEl.addEventListener('mouseup', cancelHold);
+  parentGateEl.addEventListener('mouseleave', cancelHold);
+  parentGateEl.addEventListener('touchend', cancelHold);
+  parentGateEl.addEventListener('touchcancel', cancelHold);
 
-function bindEvents() {
-  difficultyEl.addEventListener('change', (e) => {
-    state.difficulty = e.target.value;
-    saveState();
-    nextQuestion();
+  toggleBgmEl.addEventListener('change', () => {
+    parentState.settings.bgm = toggleBgmEl.checked;
+    saveParentState();
+    if (parentState.settings.bgm) startBgm();
+    else stopBgm();
   });
 
-  categoryEl.addEventListener('change', (e) => {
-    state.category = e.target.value;
-    saveState();
-    renderAnimals();
-    nextQuestion();
+  toggleSfxEl.addEventListener('change', () => {
+    parentState.settings.sfx = toggleSfxEl.checked;
+    saveParentState();
   });
 
-  languageToggleEl.addEventListener('click', () => {
-    state.language = state.language === 'zh' ? 'en' : 'zh';
-    buildSelectOptions();
-    renderAnimals();
-    nextQuestion();
-    updateProgress();
-  });
+  animLevelEl.addEventListener('change', () => setAnimLevel(animLevelEl.value));
 
-  replayBtn.addEventListener('click', () => {
-    if (currentQuestion) playAnimalSound(currentQuestion.answer);
-  });
+  resetAllBtn.addEventListener('click', () => {
+    const ok = window.confirm('确认清空全部学习数据吗？该操作不可撤销。');
+    if (!ok) return;
 
-  resetBtn.addEventListener('click', () => {
-    state.score = 0;
-    state.streak = 0;
-    state.wrongQueue = [];
-    state.dailyStats = { [todayKey]: { attempts: 0, correct: 0 } };
-    feedbackEl.textContent = state.language === 'zh' ? '进度已重置。' : 'Progress reset.';
+    score = 0;
+    localStorage.removeItem(storageKey);
+    parentState = structuredClone(defaultParentState);
+    saveParentState();
+    updateScore();
+    renderParentStats();
+    setAnimLevel(parentState.settings.animLevel);
+    stopBgm();
+    feedbackEl.textContent = '所有学习数据已重置。';
     feedbackEl.className = 'feedback';
-    updateProgress();
     nextQuestion();
   });
 }
 
-function init() {
-  if (!levels[state.difficulty]) state.difficulty = 'normal';
-  if (!categories[state.category]) state.category = 'all';
-  if (!['zh', 'en'].includes(state.language)) state.language = 'zh';
+resetBtn.addEventListener('click', () => {
+  score = 0;
+  updateScore();
+  feedbackEl.textContent = '进度已重置。';
+  feedbackEl.className = 'feedback';
+});
 
-  buildSelectOptions();
-  bindEvents();
-  renderAnimals();
-  updateProgress();
-  nextQuestion();
-}
+replayBtn.addEventListener('click', () => {
+  if (!currentQuestion) return;
+  playAnimalSound(currentQuestion.answer.id);
+});
 
-init();
+setAnimLevel(parentState.settings.animLevel);
+if (parentState.settings.bgm) startBgm();
+
+renderAnimals();
+bindParentControls();
+updateScore();
+nextQuestion();
