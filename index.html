@@ -6,22 +6,24 @@
     <title>Animal Game</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
-  <body data-anim-level="high">
-    <button
-      id="parent-gate"
-      class="parent-gate"
-      type="button"
-      aria-label="家长入口，长按打开"
-      title="家长入口（长按 1.2 秒）"
-    >
-      ⚙️
-    </button>
-
+  <body>
     <main class="app">
       <header class="hero">
         <h1>🐾 小动物认知乐园</h1>
-        <p id="onboarding" class="onboarding">先点动物卡片听声音，再做测验，选出正确的小动物！</p>
+        <p>点击卡片听一听动物叫什么，再做一个小小测验！</p>
       </header>
+
+      <section class="controls" aria-label="学习设置">
+        <label>
+          难度
+          <select id="difficulty"></select>
+        </label>
+        <label>
+          分类
+          <select id="category"></select>
+        </label>
+        <button id="lang-toggle" type="button">中文 / English</button>
+      </section>
 
       <section>
         <h2>动物卡片</h2>
@@ -31,68 +33,23 @@
       <section class="quiz" aria-labelledby="quiz-title">
         <h2 id="quiz-title">快速测验</h2>
         <p id="question" class="question"></p>
-        <div class="quiz-actions">
-          <button id="replay-sound" type="button" class="soft-btn">🔊 再听一次</button>
-        </div>
         <div id="options" class="options"></div>
+        <div class="quiz-actions">
+          <button id="replay-question" class="secondary-btn" type="button">再听一次</button>
+        </div>
         <p id="feedback" class="feedback" role="status"></p>
       </section>
 
       <section class="progress" aria-live="polite">
         <h2>学习进度</h2>
         <p>答对次数：<strong id="score">0</strong></p>
+        <p>今日练习次数：<strong id="daily-count">0</strong></p>
+        <p>当前连对：<strong id="streak">0</strong></p>
         <button id="reset-progress" type="button">重置进度</button>
       </section>
     </main>
 
-    <dialog id="parent-dialog" class="parent-dialog">
-      <form method="dialog" class="dialog-card" id="parent-form">
-        <header class="dialog-header">
-          <h2>家长模式</h2>
-          <button id="close-parent" class="close-btn" value="cancel" aria-label="关闭">✕</button>
-        </header>
-
-        <section class="stats">
-          <h3>学习统计</h3>
-          <ul>
-            <li>总答题数：<strong id="stat-total">0</strong></li>
-            <li>正确率：<strong id="stat-accuracy">0%</strong></li>
-            <li>连续学习天数：<strong id="stat-streak">0</strong></li>
-          </ul>
-        </section>
-
-        <section class="mastery">
-          <h3>各动物掌握度</h3>
-          <div id="mastery-list" class="mastery-list"></div>
-        </section>
-
-        <section class="controls">
-          <h3>控制开关</h3>
-          <label class="switch-item">
-            <input id="toggle-bgm" type="checkbox" />
-            背景音乐
-          </label>
-          <label class="switch-item">
-            <input id="toggle-sfx" type="checkbox" />
-            音效
-          </label>
-          <label class="switch-item">
-            动画强度
-            <select id="anim-level">
-              <option value="high">高</option>
-              <option value="low">低</option>
-              <option value="off">关闭</option>
-            </select>
-          </label>
-        </section>
-
-        <section class="danger-zone">
-          <button id="reset-all" type="button" class="danger-btn">清空全部学习数据</button>
-        </section>
-      </form>
-    </dialog>
-
-    <!-- v1.1+v1.3 -->
+    <script src="data.js"></script>
     <script src="app.js"></script>
   </body>
 </html>
