@@ -92,6 +92,11 @@ select,
   box-shadow: 0 6px 14px rgba(22, 119, 255, 0.18);
 }
 
+.animal-card:active {
+  transform: scale(0.97);
+  box-shadow: 0 0 0 3px rgba(22, 119, 255, 0.25);
+}
+
 .emoji {
   font-size: 2.4rem;
   display: block;

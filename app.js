@@ -280,6 +280,13 @@ function bindEvents() {
   });
 
   resetBtn.addEventListener('click', () => {
+    const confirmed = window.confirm(
+      state.language === 'zh'
+        ? '确认重置学习进度吗？该操作会清空当前统计数据。'
+        : 'Reset learning progress? This will clear current statistics.'
+    );
+    if (!confirmed) return;
+
     state.score = 0;
     state.streak = 0;
     state.wrongQueue = [];
