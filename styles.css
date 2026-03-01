@@ -1,0 +1,114 @@
+:root {
+  --bg: #f8fbff;
+  --primary: #1677ff;
+  --card: #ffffff;
+  --text: #1f2d3d;
+  --ok: #2f9e44;
+  --error: #d9480f;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  background: linear-gradient(180deg, #f0f7ff 0%, var(--bg) 100%);
+  color: var(--text);
+}
+
+.app {
+  width: min(920px, 92vw);
+  margin: 0 auto;
+  padding: 1.2rem 0 2rem;
+}
+
+.hero {
+  text-align: center;
+  margin-bottom: 1rem;
+}
+
+h1,
+h2 {
+  margin: 0.6rem 0;
+}
+
+.animal-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 0.8rem;
+}
+
+.animal-card {
+  background: var(--card);
+  border: 2px solid #dbe9ff;
+  border-radius: 14px;
+  padding: 0.8rem;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.animal-card:hover,
+.animal-card:focus-visible {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 14px rgba(22, 119, 255, 0.18);
+}
+
+.emoji {
+  font-size: 2.4rem;
+  display: block;
+  text-align: center;
+}
+
+.name {
+  margin-top: 0.35rem;
+  display: block;
+  text-align: center;
+  font-size: 1.1rem;
+}
+
+.quiz,
+.progress {
+  margin-top: 1.2rem;
+  background: #fff;
+  border-radius: 12px;
+  padding: 0.9rem;
+  border: 2px solid #e8f0ff;
+}
+
+.options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 0.55rem;
+}
+
+.option-btn,
+#reset-progress {
+  border: 0;
+  background: #e7f0ff;
+  color: #0f3b8f;
+  border-radius: 10px;
+  padding: 0.6rem;
+  cursor: pointer;
+  font-size: 1rem;
+}
+
+.option-btn:hover,
+#reset-progress:hover {
+  background: #d5e7ff;
+}
+
+.feedback {
+  margin-top: 0.7rem;
+  min-height: 1.5rem;
+  font-size: 1.05rem;
+}
+
+.feedback.ok {
+  color: var(--ok);
+}
+
+.feedback.error {
+  color: var(--error);
+}

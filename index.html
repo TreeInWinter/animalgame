@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Animal Game</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app">
+      <header class="hero">
+        <h1>🐾 小动物认知乐园</h1>
+        <p>点击卡片听一听动物叫什么，再做一个小小测验！</p>
+      </header>
+
+      <section>
+        <h2>动物卡片</h2>
+        <div id="animal-grid" class="animal-grid" aria-live="polite"></div>
+      </section>
+
+      <section class="quiz" aria-labelledby="quiz-title">
+        <h2 id="quiz-title">快速测验</h2>
+        <p id="question" class="question"></p>
+        <div id="options" class="options"></div>
+        <p id="feedback" class="feedback" role="status"></p>
+      </section>
+
+      <section class="progress" aria-live="polite">
+        <h2>学习进度</h2>
+        <p>答对次数：<strong id="score">0</strong></p>
+        <button id="reset-progress" type="button">重置进度</button>
+      </section>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>
